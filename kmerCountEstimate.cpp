@@ -194,8 +194,8 @@ int main(int argc, char** argv)
     //int seed = atoi(argv[4]);
 
     unordered_map<uint64_t, pair<int, uint64_t>> MAP; // (<hash>, <tz, count>>) 
-    unordered_map<uint64_t, int> m;
-    priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
+    //unordered_map<uint64_t, int> m;
+    //priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
     cout << "read the Sequences .. " << endl;
     int th = 0;
     
@@ -203,7 +203,7 @@ int main(int argc, char** argv)
     int count = 0;
     while ((l = kseq_read(seq)) >= 0) {
         total++;
-        if(total == 10000000) exit(0);
+        //if(total == 10000000) exit(0);
         if(total%100000 == 0) cout << "\r" << (total) << " completed" << flush;
         string seqs(seq->seq.s);
         int len = seqs.length();
