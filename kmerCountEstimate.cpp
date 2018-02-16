@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 {
     
     if(argc == 1){
-      cout << argv[0] << " <seq.fa> <kmerLen> <minHeap_Size> <seed>" << endl;
+      cout << argv[0] << " <seq.fa> <kmerLen> <minHeap_Size>" << endl;
       exit(0);
     } 
     int n = atoi(argv[2]);
@@ -191,9 +191,9 @@ int main(int argc, char** argv)
     seq = kseq_init(fileno(fp));
     
     int k = atoi(argv[3]); // size of maxheap i.e. sample size
-    int seed = atoi(argv[4]);
+    //int seed = atoi(argv[4]);
 
-    unordered_map<uint64_t, pair<int, uint64_t>> MAP;
+    unordered_map<uint64_t, pair<int, uint64_t>> MAP; // (<hash>, <tz, count>>) 
     unordered_map<uint64_t, int> m;
     priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
     cout << "read the Sequences .. " << endl;
@@ -203,7 +203,8 @@ int main(int argc, char** argv)
     int count = 0;
     while ((l = kseq_read(seq)) >= 0) {
         total++;
-        if(total%1000000 == 0) cout << "\r" << (total) << " completed" << flush;
+        if(total == 10000000) exit(0);
+        if(total%100000 == 0) cout << "\r" << (total) << " completed" << flush;
         string seqs(seq->seq.s);
         int len = seqs.length();
         std::string kmer = seqs.substr(0, n);
@@ -214,52 +215,42 @@ int main(int argc, char** argv)
           hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
           int tz = trailing_zeros(hash);
           if(tz >= th){
-            if(MAP.find(hash) != MAP.end()) MAP[hash].second += 1;
-            else MAP.insert(make_pair(hash, make_pair(1, tz)));
-            count ++;
+            if(MAP.find(hash) != MAP.end()) {MAP[hash].second += 1; count++;}
+            else MAP.insert(make_pair(hash, make_pair(tz, 1)));
             if(count >= k){
-              for(auto& p: MAP)
-              if(p.second.second == th)  MAP.erase(p.first);
+              //cout << "count: " << count << " MAP size: " << MAP.size() << endl;
+              decltype(MAP) newmap;
+              for (auto&& p : MAP)
+                if(p.second.first > th)
+                  newmap.emplace(move(p));
+              MAP.swap(newmap);
+              count = MAP.size();
+              th += 1;
+              //cout << "th: " << th << " MAP size: " << MAP.size() << endl;
             }
-            th += 1;
           }
-          /*if(m.find(hash) != m.end()) m[hash]++;
-          else { 
-            //int tz = trailing_zeros(hash);
-            if(tz >= th){
-              pair<uint64_t, int> ret2(hash, tz);
-              pair<uint64_t, int> ret1(hash, 1);
-              m.insert(ret1);
-              sample.push(ret2);
-              count++; //if(count == k) exit(0);
-              if(count == k){ 
-                while(sample.top().second == th){
-                  m.erase(sample.top().first);
-                  sample.pop();
-                  count--;
-                }
-                th = th+1;
-              }
-            }
-          }*/
         }
+        //cout << "\r" << total << " sequences completed..." << flush;
     }
-    
-   /* cout << "total: " << total << endl;
+    cout << endl;
+    cout << "total: " << total << endl;
     cout << "no_kmer: " << no_kmers << endl;
     unsigned long freq[65]; for(int i=1; i<=65; i++) freq[i] = 0;
     unsigned long tot = 0;
     int xx = 0;
-    for (auto it = m.begin(); it != m.end(); it++){
+    for(auto& p: MAP){
+      if(p.second.second <= 65) freq[p.second.second]++;
+    } 
+    /*for (auto it = m.begin(); it != m.end(); it++){
       if(it->second <= 65) freq[it->second]++;
-    }
+    }*/
     cout << "th: " << th << endl;
     for(int i=1; i<=64; i++){
       unsigned long fff = (freq[i]*pow(2, th));
       printf("f%d\t%lu\n", i, fff); 
     }
-    unsigned long F0 = m.size() * pow(2, (th)); 
-    cout << "F0: " << F0 << endl;*/
+    unsigned long F0 = MAP.size() * pow(2, (th)); 
+    cout << "F0: " << F0 << endl;
     return 0;
         
 }
