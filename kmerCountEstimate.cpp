@@ -210,27 +210,28 @@ int main(int argc, char** argv)
         std::string kmer = seqs.substr(0, n);
         uint64_t hash, fhVal=0, rhVal=0;
         hash = NTPC64(kmer.c_str(), n, fhVal, rhVal);
+        //#pragma omp parallel for
         for(int i=0; i<(len-n); i++) {
-          no_kmers++;
-          hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
-          int tz = trailing_zeros(hash);
-          if(tz >= th){
-            if(MAP.find(hash) != MAP.end()) {MAP[hash].second += 1; count++;}
-            else MAP.insert(make_pair(hash, make_pair(tz, 1)));
-            if(count >= k){
-              //cout << "count: " << count << " MAP size: " << MAP.size() << endl;
-              decltype(MAP) newmap;
-              for (auto&& p : MAP)
-                if(p.second.first > th)
-                  newmap.emplace(move(p));
-              MAP.swap(newmap);
-              count = MAP.size();
-              th += 1;
-              //cout << "th: " << th << " MAP size: " << MAP.size() << endl;
+            no_kmers++;
+            hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
+            int tz = trailing_zeros(hash);
+            if(tz >= th){
+                if(MAP.find(hash) != MAP.end()) {
+                    MAP[hash].second += 1; 
+                    count++;
+                }
+                else MAP.insert(make_pair(hash, make_pair(tz, 1)));
+                if(count >= k){
+                    decltype(MAP) newmap;
+                    for (auto&& p : MAP)
+                        if(p.second.first > th)
+                            newmap.emplace(move(p));
+                    MAP.swap(newmap);
+                    count = MAP.size();
+                    th += 1;
+                }
             }
-          }
         }
-        //cout << "\r" << total << " sequences completed..." << flush;
     }
     cout << endl;
     cout << "total: " << total << endl;
