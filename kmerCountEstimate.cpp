@@ -236,7 +236,7 @@ int main(int argc, char** argv)
     cout << endl;
     cout << "total: " << total << endl;
     cout << "no_kmer: " << no_kmers << endl;
-    unsigned long freq[65]; for(int i=1; i<=65; i++) freq[i] = 0;
+    unsigned long freq[65]; for(int i=1; i<65; i++) freq[i] = 0;
     unsigned long tot = 0;
     int xx = 0;
     for(auto& p: MAP){
