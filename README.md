@@ -1,12 +1,12 @@
 Compile on HCC:
 
-module load compiler/gcc/7.1
+		module load compiler/gcc/7.1
 
-g++ -o kmerEst kmerCountEstimate.cpp -std=c++11 
+		g++ -o kmerCountEstimate kmerCountEstimate.cpp -std=c++11 -fopenmp -O3 -march=native
 
 Run:
 
-./kmerEst in.fasta kmerLen 
+		./kmerEst in.fasta kmer-Len sample-size 
   
 Output:
   
