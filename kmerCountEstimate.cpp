@@ -37,6 +37,7 @@
 #include <iostream>
 #include <random>
 #include "dna_test.h"
+#include "ntHashIterator.hpp"
 
 using namespace std;
 //KSEQ_INIT(gzFile, gzread)
@@ -193,56 +194,40 @@ int main(int argc, char** argv)
     int seed = atoi(argv[4]);
 
     unordered_map<uint64_t, int> m;
-    //unordered_map<uint64_t, int> mm;
     priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
     cout << "read the Sequences .. " << endl;
     int th = 0;
-
+    
     long long total = 0, no_kmers = 0;
     int count = 0;
     while ((l = kseq_read(seq)) >= 0) {
         total++;
-        if(total%500000 == 0) cout << "\r" << (total-1) << " completed" << flush;
+        if(total%1000000 == 0) cout << "\r" << (total) << " completed" << flush;
         string seqs(seq->seq.s);
-        string ptr = seqs;
-        int len = ptr.length();
-        for (int i = len-1, j=0; i >= 0; --i, ++j) {
-            ptr[j] = basemap[(int)seqs[i]];
-        }
-
-        for(int i=0; i<(len-n+1); i++) {
+        int len = seqs.length();
+        std::string kmer = seqs.substr(0, n);
+        uint64_t hash, fhVal=0, rhVal=0;
+        hash = NTPC64(kmer.c_str(), n, fhVal, rhVal);
+        for(int i=0; i<(len-n); i++) {
           no_kmers++;
-          uint8_t hash1[8];
-          uint64_t hash;
-
-          if(strncmp(seq->seq.s+i, ptr.c_str()+(len-n-i), n) < 0)
-            MetroHash64::Hash((uint8_t*)seq->seq.s+i, n, hash1, seed);
-          else
-            MetroHash64::Hash((uint8_t*)ptr.c_str()+(len-n-i), n, hash1, seed);
-          memcpy(&hash, hash1, sizeof hash);
+          hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
           int tz = trailing_zeros(hash);
-
-          if(count < k) {
-            if(m.find(hash) != m.end()) m[hash]++;
-            else {
-              if(tz >= th){
-                pair<uint64_t, int> ret2(hash, tz);
-                pair<uint64_t, int> ret1(hash, 1);
-                m.insert(ret1);
-                sample.push(ret2);
-                count++;
-                if(count == k){ 
-                  int flag = 0;
-                  while(flag == 0){
-                    while(sample.top().second == th){
-                      m.erase(sample.top().first);
-                      sample.pop();
-                      count--;
-                      flag = 1;
-                    }
-                    th = th+1;
-                  }
+          if(m.find(hash) != m.end()) m[hash]++;
+          else { 
+            //int tz = trailing_zeros(hash);
+            if(tz >= th){
+              pair<uint64_t, int> ret2(hash, tz);
+              pair<uint64_t, int> ret1(hash, 1);
+              m.insert(ret1);
+              sample.push(ret2);
+              count++; //if(count == k) exit(0);
+              if(count == k){ 
+                while(sample.top().second == th){
+                  m.erase(sample.top().first);
+                  sample.pop();
+                  count--;
                 }
+                th = th+1;
               }
             }
           }
