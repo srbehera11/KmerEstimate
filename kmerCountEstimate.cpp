@@ -36,7 +36,7 @@
 #include <cstring>
 #include <iostream>
 #include <random>
-#include "dna_test.h"
+//#include "dna_test.h"
 #include "ntHashIterator.hpp"
 
 using namespace std;
@@ -193,6 +193,7 @@ int main(int argc, char** argv)
     int k = atoi(argv[3]); // size of maxheap i.e. sample size
     int seed = atoi(argv[4]);
 
+    unordered_map<uint64_t, pair<int, uint64_t>> MAP;
     unordered_map<uint64_t, int> m;
     priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
     cout << "read the Sequences .. " << endl;
@@ -212,7 +213,17 @@ int main(int argc, char** argv)
           no_kmers++;
           hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
           int tz = trailing_zeros(hash);
-          if(m.find(hash) != m.end()) m[hash]++;
+          if(tz >= th){
+            if(MAP.find(hash) != MAP.end()) MAP[hash].second += 1;
+            else MAP.insert(make_pair(hash, make_pair(1, tz)));
+            count ++;
+            if(count >= k){
+              for(auto& p: MAP)
+              if(p.second.second == th)  MAP.erase(p.first);
+            }
+            th += 1;
+          }
+          /*if(m.find(hash) != m.end()) m[hash]++;
           else { 
             //int tz = trailing_zeros(hash);
             if(tz >= th){
@@ -230,11 +241,11 @@ int main(int argc, char** argv)
                 th = th+1;
               }
             }
-          }
+          }*/
         }
     }
     
-    cout << "total: " << total << endl;
+   /* cout << "total: " << total << endl;
     cout << "no_kmer: " << no_kmers << endl;
     unsigned long freq[65]; for(int i=1; i<=65; i++) freq[i] = 0;
     unsigned long tot = 0;
@@ -248,7 +259,7 @@ int main(int argc, char** argv)
       printf("f%d\t%lu\n", i, fff); 
     }
     unsigned long F0 = m.size() * pow(2, (th)); 
-    cout << "F0: " << F0 << endl;
+    cout << "F0: " << F0 << endl;*/
     return 0;
         
 }
