@@ -6,7 +6,7 @@ g++ -o kmerEst kmerCountEstimate.cpp -std=c++11
 
 Run:
 
-./kmerEst <in.fasta> <k>  
+./kmerEst in.fasta kmerLen 
   
 Output:
   
