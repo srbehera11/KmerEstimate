@@ -8,7 +8,7 @@ Compile:
 
 Run:
 
-		./kmerEst in.fasta kmer-Len sample-size 
+		./kmerEst <in.fasta> <kmer-Len> <sample-size> <out.txt> 
   
 Output:
   
