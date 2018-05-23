@@ -1,3 +1,6 @@
+//#include <google/sparse_hash_map>
+//#include <google/dense_hash_map>
+#include "MurmurHash3.cpp"
 #include <iostream>
 #include <climits>
 #include <zlib.h>
@@ -36,8 +39,14 @@
 #include <cstring>
 #include <iostream>
 #include <random>
+#include <cinttypes>
 //#include "dna_test.h"
 #include "ntHashIterator.hpp"
+
+#define SPP_MIX_HASH 1
+#include "sparsepp/spp.h"
+
+using spp::sparse_hash_map;
 
 using namespace std;
 //KSEQ_INIT(gzFile, gzread)
@@ -45,7 +54,7 @@ KSEQ_INIT(int, read)
 std::map<char, char> mapp = {{'A', 'T'}, {'C', 'G'}, {'G', 'C'}, {'T', 'A'}, {'N', 'N'}};
 
 // Function to reverse string and return reverse string pointer of that
-void ReverseConstString(char *str)
+/*void ReverseConstString(char *str)
 {
     int start, end, len;
     char temp, *ptr = NULL;
@@ -61,9 +70,9 @@ void ReverseConstString(char *str)
     ptr[len] = '\0';
     strcpy(str, ptr);
     free(ptr); 
-}
+}*/
 
-char complement(char n)
+/*char complement(char n)
 {   
     switch(n)
     {   
@@ -78,7 +87,7 @@ char complement(char n)
     }   
     assert(false);
     return ' ';
-}   
+}*/   
 static const int MultiplyDeBruijnBitPosition[32] =
 {
   0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
@@ -118,7 +127,7 @@ static const char basemap[255] =
         '\0', '\0', '\0', '\0', '\0'                                /* 250 - 254 */
     };
 
-uint32_t murmur3_32(const uint8_t* key, size_t len, uint32_t seed) {
+/*uint32_t murmur3_32(const uint8_t* key, size_t len, uint32_t seed) {
   uint32_t h = seed;
   if (len > 3) {
     const uint32_t* key_x4 = (const uint32_t*) key;
@@ -155,7 +164,8 @@ uint32_t murmur3_32(const uint8_t* key, size_t len, uint32_t seed) {
   h ^= h >> 16;
   return h;
 }
-
+*/
+/*
 struct comparator {
  bool operator()(uint64_t i, uint64_t j) {
  return i > j;
@@ -167,7 +177,7 @@ struct CompareBySecond {
                               pair<int, int> const & b)
     { return a.second > b.second; }
 };
-
+*/
 unsigned trailing_zeros(uint64_t n) {
     return n ? __builtin_ctzll(n) : -1;
 }
@@ -176,7 +186,7 @@ int main(int argc, char** argv)
 {
     
     if(argc == 1){
-      cout << argv[0] << " <seq.fa> <kmerLen> <minHeap_Size>" << endl;
+      cout << argv[0] << " <seq.fa> <kmerLen> <minHeap_Size> <out.txt>" << endl;
       exit(0);
     } 
     int n = atoi(argv[2]);
@@ -189,70 +199,105 @@ int main(int argc, char** argv)
       exit(1);
     }
     seq = kseq_init(fileno(fp));
-    
     int k = atoi(argv[3]); // size of maxheap i.e. sample size
-    //int seed = atoi(argv[4]);
-
-    unordered_map<uint64_t, pair<int, uint64_t>> MAP; // (<hash>, <tz, count>>) 
-    //unordered_map<uint64_t, int> m;
-    //priority_queue<pair<uint64_t, int>, std::vector<pair<uint64_t, int> >, CompareBySecond> sample;
+    //unordered_map<uint64_t, pair<uint8_t, uint32_t>> MAP; // (<hash>, <tz, count>>) 
+    //sparse_hash_map<uint32_t, pair<uint8_t, uint32_t>> MAP;
+    //vector <google::sparse_hash_map<uint32_t, pair<uint8_t, uint32_t>> > MAP(64);
+    //MAP.set_empty_key(-1);
+    // for(int i=0; i<64; i++) MAP[i].set_deleted_key(0);
+    typedef sparse_hash_map<uint64_t, uint32_t> SMap;
+    vector<SMap> MAP(64);
+   // vector < sparse_hash_map<uint32_t, uint32_t> > MAP(64);
     cout << "read the Sequences .. " << endl;
     int th = 0;
-    
-    long long total = 0, no_kmers = 0;
+    uint64_t total = 0, no_kmers = 0;
     int count = 0;
+    uint64_t hash=0, fhVal=0, rhVal=0;
     while ((l = kseq_read(seq)) >= 0) {
-        total++;
-        //if(total == 10000000) exit(0);
-        if(total%100000 == 0) cout << "\r" << (total) << " completed" << flush;
-        string seqs(seq->seq.s);
-        int len = seqs.length();
-        std::string kmer = seqs.substr(0, n);
-        uint64_t hash, fhVal=0, rhVal=0;
-        hash = NTPC64(kmer.c_str(), n, fhVal, rhVal);
-        //#pragma omp parallel for
-        for(int i=0; i<(len-n); i++) {
-            no_kmers++;
-            hash = NTPC64(seqs[i], seqs[i+n], n, fhVal, rhVal);
-            int tz = trailing_zeros(hash);
+        ++total;
+        //cout << "\r" << total << " processing ..." << flush;
+        int len = strlen(seq->seq.s);
+        ntHashIterator itr(seq->seq.s, 1, n);
+        while (itr != itr.end()) {
+            hash = (*itr)[0];
+            ++no_kmers;
+            uint8_t tz = trailing_zeros(hash);
             if(tz >= th){
-                if(MAP.find(hash) != MAP.end()) {
-                    MAP[hash].second += 1; 
-                    count++;
-                }
-                else MAP.insert(make_pair(hash, make_pair(tz, 1)));
-                if(count >= k){
-                    decltype(MAP) newmap;
+                //uint32_t hash = 0; 
+                //MurmurHash3_x86_32((uint8_t *)&hash1, 8, 0, &hash); 
+                //if(MAP.find(hash) != MAP.end()) MAP[hash].second += 1;  // increment the counter if already there 
+                if(MAP[tz].find(hash) != MAP[tz].end()) MAP[tz][hash] += 1; 
+                //if(MAP.find(hash) != MAP.end()) MAP[hash].second += 1;
+                else{ //// insert if not there 
+                  //MAP.insert(make_pair(hash, make_pair(tz, 1))); 
+                  MAP[tz].insert(make_pair(hash, 1)); 
+                  ++count;  // insert if not there 
+                  //cout << "\r" << "count: " << count << flush;// << endl;
+                  if(count == k){
+                    int cnt = MAP[th].size();
+                    count = count - cnt;
+                    SMap().swap(MAP[th]);
+                    //MAP[th].clear(); //MAP[th].resize(0);
+                    ++th;
+                    cout  << "count: " << count << endl; 
+                   /* int cnt = MAP[th].size();
+                    MAP[th].clear();
+                    count = count - cnt; 
+                    ++th;*/
+                   /*for (auto it = MAP.begin(); it != MAP.end(); ++it){
+                      if (it->second.first == th) { MAP.erase(it); } //it = MAP.erase(it);
+                      //else ++it;
+                    }
+                    count = MAP.size();
+                    ++th;*/
+                    //cout << "th: " << th << endl;
+                    /*decltype(MAP) newmap;
                     for (auto&& p : MAP)
                         if(p.second.first > th)
                             newmap.emplace(move(p));
-                    MAP.swap(newmap);
-                    count = MAP.size();
-                    th += 1;
+                    MAP.swap(newmap);*/
+                    //count = MAP.size();
+                    //++th;
+                  }
                 }
             }
-        }
+	    ++itr;
+	}
     }
+    //exit(0); 
+    cout << "th: " << th << endl;
+    cout << "No. of sequences: " << total << endl;
+    FILE *fo = fopen(argv[4], "w");
+    uint32_t csize = 0; //MAP.size();
+    for(int i=th; i<64; i++) csize += MAP[i].size();
+    unsigned long F0 = csize * pow(2, (th));
+    cout << "F0: " << F0 << endl;
+    fprintf(fo, "F1\t%lu\n", no_kmers);
+    fprintf(fo, "F0\t%lu\n", F0);
     cout << endl;
     cout << "total: " << total << endl;
     cout << "no_kmer: " << no_kmers << endl;
     unsigned long freq[65]; for(int i=1; i<65; i++) freq[i] = 0;
     unsigned long tot = 0;
     int xx = 0;
-    for(auto& p: MAP){
-      if(p.second.second <= 65) freq[p.second.second]++;
+    for(int i=th; i<64; i++){
+      for(auto& p: MAP[i]){
+      //for(auto& p: MAP){
+        if(p.second <= 65) freq[p.second]++;
+      }
     } 
     /*for (auto it = m.begin(); it != m.end(); it++){
       if(it->second <= 65) freq[it->second]++;
     }*/
+    //FILE *fo = fopen(argv[4], "w"); 
     cout << "th: " << th << endl;
     for(int i=1; i<=64; i++){
       unsigned long fff = (freq[i]*pow(2, th));
-      printf("f%d\t%lu\n", i, fff); 
+      fprintf(fo, "f%d\t%lu\n", i, fff); 
     }
-    unsigned long F0 = MAP.size() * pow(2, (th)); 
-    cout << "F0: " << F0 << endl;
+    fclose(fo);
+    //unsigned long F0 = MAP.size() * pow(2, (th)); 
+    //cout << "F0: " << F0 << endl;
     return 0;
         
 }
- 
