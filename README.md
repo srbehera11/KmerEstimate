@@ -1,16 +1,14 @@
-Compile and Run on HCC (Crane)
+Compile and Run
 ------------------------------
 Compile:
 
-		module load compiler/gcc/7.1
 
 		g++ -o kmerEst kmerCountEstimate.cpp -std=c++11 -O3 -march=native
 
 Run:
 
-		./kmerEst <in.fasta> <kmer-Len> <sample-size> <out.txt> 
+		./KmerEst -f <seq.fa> -k  <kmerLen> -s <minHeap_Size> -c <coverage> -o <out.txt>
   
-Output:
   
   
   
