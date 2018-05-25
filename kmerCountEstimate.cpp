@@ -181,25 +181,60 @@ struct CompareBySecond {
 unsigned trailing_zeros(uint64_t n) {
     return n ? __builtin_ctzll(n) : -1;
 }
+
+void printHelp()
+{
+    
+    cout << "KmerEst [options] -f <fasta/fastq> -k <k-mer length>  -s <sample size> -o <output file>"    << endl
+    << "  -h               help"                                   << endl
+    << "  -f <file>       Input sequence file "                << endl
+    << "  -k <k-mer size >        kmer size (default 31) "        << endl
+    << "  -s <sample size>        sample size (default 25m)"        << endl
+     << "  -c coverage>       coverage (default 64)"        << endl
+    << "  -o         	  Prefix of the Output file " << endl;
+    
+    exit(0);
+}
  
 int main(int argc, char** argv)
 {
     
     if(argc == 1){
-      cout << argv[0] << " <seq.fa> <kmerLen> <minHeap_Size> <out.txt>" << endl;
+      cout << argv[0] << " -f <seq.fa> -k  <kmerLen> -s <minHeap_Size> -c <coverage> -o <out.txt>" << endl;
       exit(0);
     } 
-    int n = atoi(argv[2]);
+    int n=31;
+    int s = 25000000;
+    int cov = 64;
+    string f = "", outf = "";
+    for (int c = 1; c < argc; c++)
+        {
+            
+            if (!strcmp(argv[c], "-h"))       { printHelp(); }
+            else if (!strcmp(argv[c], "-k"))     { n = atoi(argv[c+1]); c++; }
+            else if (!strcmp(argv[c], "-f"))    { f = argv[c+1]; c++; }
+            else if (!strcmp(argv[c], "-s"))    { s = atoi(argv[c+1]); c++; }
+            else if (!strcmp(argv[c], "-c"))    { cov = atoi(argv[c+1]); c++; }
+            else if (!strcmp(argv[c], "-o")) { outf = argv[c+1]; c++; }
+        }
+        
+       if (f.empty()  || outf.empty())
+        {
+          printHelp();
+        }
+    //int n = atoi(argv[2]);
     FILE *fp;
     kseq_t *seq;
     int l;
-    fp = fopen(argv[1], "r");
+    //fp = fopen(argv[1], "r");
+    fp = fopen(f.c_str(), "r");
     if( fp == Z_NULL){
-      cout<<"File: "<<argv[1] << " does not exist" <<endl;
+      cout<<"File: "<< f  << " does not exist" <<endl;
       exit(1);
     }
     seq = kseq_init(fileno(fp));
-    int k = atoi(argv[3]); // size of maxheap i.e. sample size
+    int k = s;
+    // int k = atoi(argv[3]); // size of maxheap i.e. sample size
     //unordered_map<uint64_t, pair<uint8_t, uint32_t>> MAP; // (<hash>, <tz, count>>) 
     //sparse_hash_map<uint32_t, pair<uint8_t, uint32_t>> MAP;
     //vector <google::sparse_hash_map<uint32_t, pair<uint8_t, uint32_t>> > MAP(64);
@@ -267,7 +302,7 @@ int main(int argc, char** argv)
     //exit(0); 
     cout << "th: " << th << endl;
     cout << "No. of sequences: " << total << endl;
-    FILE *fo = fopen(argv[4], "w");
+    FILE *fo = fopen(outf.c_str(), "w");
     uint32_t csize = 0; //MAP.size();
     for(int i=th; i<64; i++) csize += MAP[i].size();
     unsigned long F0 = csize * pow(2, (th));
@@ -277,13 +312,15 @@ int main(int argc, char** argv)
     cout << endl;
     cout << "total: " << total << endl;
     cout << "no_kmer: " << no_kmers << endl;
-    unsigned long freq[65]; for(int i=1; i<65; i++) freq[i] = 0;
+    //unsigned long freq[65]; 
+   unsigned long *freq = new unsigned long[cov];
+   for(int i=1; i<=cov; i++) freq[i] = 0;
     unsigned long tot = 0;
     int xx = 0;
     for(int i=th; i<64; i++){
       for(auto& p: MAP[i]){
       //for(auto& p: MAP){
-        if(p.second <= 65) freq[p.second]++;
+        if(p.second <= cov) freq[p.second]++;
       }
     } 
     /*for (auto it = m.begin(); it != m.end(); it++){
@@ -291,7 +328,7 @@ int main(int argc, char** argv)
     }*/
     //FILE *fo = fopen(argv[4], "w"); 
     cout << "th: " << th << endl;
-    for(int i=1; i<=64; i++){
+    for(int i=1; i<=cov; i++){
       unsigned long fff = (freq[i]*pow(2, th));
       fprintf(fo, "f%d\t%lu\n", i, fff); 
     }
